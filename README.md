@@ -2,7 +2,8 @@
 
 A little iPhone app for planning trips with friends. You make groups, your friends join with just a username (no passwords), you post questions, and you get a live roundup of everyone's answers with charts.
 
-- **Groups:** everyone using the app sees the list of groups and can tap **Join**.
+- **Invite links:** create a group and you get a link to send your friends. When they open it, they see the group, who's already in and what they'll be asked, and they choose whether to join.
+- **Groups:** everyone using the app also sees the list of groups and can tap **Join**.
 - **No passwords:** people type a username. If they switch phones they just tap their name.
 - **Five question types:**
   - **Word**: free text ("Any must-dos?")
@@ -79,7 +80,7 @@ The ⚙︎ menu shows "✓ Connected to the shared database" when this is workin
 2. Tap the **Share** button, then **Add to Home Screen**.
 3. It now opens full-screen from its own icon, like any other app.
 
-Send friends the same link, or open a group and tap **⤴︎** to share a link straight to it.
+Send friends the same link, or send them a group's invite link so they land straight on that group (see below).
 
 ## How to use it
 
@@ -87,17 +88,19 @@ Send friends the same link, or open a group and tap **⤴︎** to share a link s
 
 1. Tap ⚙︎ → *I'm the organiser* and enter your PIN. That device stays unlocked until you turn it off.
 2. **＋ New group**: give it a name, a description and an icon.
-3. In the group's **Manage** tab, tap **＋ Add**, choose Word / Number / Range / Choice / Dates, and post the question.
-4. Watch the **Results** tab fill up. Use the **⋯** menu on a question to edit it, close it to new answers, or delete it.
-5. If you want, turn on **Let everyone see the results**.
+3. An **Invite friends** sheet pops up. Tap **Share link…** to send it in Messages, WhatsApp and so on, or **Copy link**. You can find the link again any time in the group's **Manage** tab, or by tapping **⤴︎** at the top.
+4. In the group's **Manage** tab, tap **＋ Add**, choose Word / Number / Range / Choice / Dates, and post the question.
+5. Watch the **Results** tab fill up. Use the **⋯** menu on a question to edit it, close it to new answers, or delete it.
+6. If you want, turn on **Let everyone see the results**.
 
 **Friends**
 
-1. Open the link, tap a group, type a username and tap **Join**.
+1. Tap the invite link. They'll see the group, who's in and the questions waiting. To join, they type a name and tap **Join group**, or tap **Not now** to look around first.
 2. Answer the questions. They can come back and change their answers at any time.
 
 ## Good to know
 
+- Invite links only work for friends once the app is online (step 3) and connected to Firebase (step 2). In demo mode the link opens an empty app on their phone.
 - With no passwords, anyone who has the link could join or pick someone else's name. That's fine for a group of friends, but don't use it for anything private.
 - The organiser PIN is stored in the app's code, so a determined friend could find it by reading the source. It stops accidental edits; it isn't real security.
 - Firebase's free plan allows 50,000 reads and 20,000 writes a day, far more than a friend group will use.

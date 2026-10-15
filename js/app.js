@@ -188,9 +188,9 @@ function groupView() {
   let body;
   if (tab === "results") body = resultsTab(group, questions, members);
   else if (tab === "manage") body = manageTab(group, questions, members);
-  else body = mine ? answerTab(group, questions, mine) : joinCard(group, members);
+  else body = mine ? answerTab(group, questions, mine) : joinCard(group, members, questions);
 
-  return `${header({ title: group.name, back: "#/", actions: `<button class="icon-btn" data-action="share" aria-label="Share link">⤴︎</button>` })}
+  return `${header({ title: group.name, back: "#/", actions: `<button class="icon-btn" data-action="invite" aria-label="Invite friends">⤴︎</button>` })}
     <main class="page">
       ${errorBox()}
       <section class="hero">
@@ -207,14 +207,26 @@ function groupView() {
     </main>`;
 }
 
-function joinCard(group, members) {
-  return `<section class="card">
-      <h3>Join this group</h3>
-      <p class="muted">Pick a username so everyone knows who answered what. No password needed.</p>
-      <form novalidate data-form="join" class="row-form">
-        <input name="name" placeholder="Your name" maxlength="24" autocomplete="nickname" autocapitalize="words" required>
-        <button class="btn primary">Join</button>
+function joinCard(group, members, questions) {
+  const names = members.map((m) => m.name);
+  const whoText = !names.length ? "Be the first to join!"
+    : names.length <= 3 ? `${names.join(", ")} ${names.length === 1 ? "is" : "are"} already in.`
+    : `${names.slice(0, 3).join(", ")} and ${names.length - 3} ${names.length - 3 === 1 ? "other" : "others"} are already in.`;
+  return `<section class="card invite">
+      <p class="eyebrow">You're invited 🎉</p>
+      <h3>Join ${esc(group.name)}?</h3>
+      <p class="muted">${esc(whoText)}</p>
+      ${questions.length ? `<p class="invite-sub">${questions.length} ${questions.length === 1 ? "question" : "questions"} to answer:</p>
+        <ul class="preview-qs">${questions.slice(0, 5).map((q) => `<li><span class="pill type">${S.TYPES[q.type]?.label}</span>${esc(q.title)}</li>`).join("")}
+        ${questions.length > 5 ? `<li class="muted">…and ${questions.length - 5} more</li>` : ""}</ul>` : ""}
+      <form novalidate data-form="join" class="join-form">
+        <label for="join-name">Your name</label>
+        <input id="join-name" name="name" placeholder="e.g. Sam" maxlength="24" autocomplete="nickname" autocapitalize="words" required>
+        <p class="form-error" hidden></p>
+        <button class="btn primary block">Join group</button>
       </form>
+      <p class="muted small center-text">No password needed. Your name is just so everyone knows who said what.</p>
+      <a class="btn ghost block" href="#/">Not now</a>
     </section>
     ${members.length ? `<section class="card">
       <h3>Already joined?</h3>
@@ -508,6 +520,11 @@ function manageTab(group, questions, members) {
     })
     .join("");
   return `<section class="card">
+      <h3>Invite friends</h3>
+      <p class="muted small">Send this link. Friends tap it, see the group and choose to join.</p>
+      ${inviteBox(group)}
+    </section>
+    <section class="card">
       <div class="section-head"><h3>Questions</h3><a class="btn small primary" href="#/g/${group.id}/q/new">＋ Add</a></div>
       ${questions.length ? `<ul class="manage-list">${qs}</ul>` : `<p class="muted">No questions yet. Add a word, number, range or multiple-choice question.</p>`}
     </section>
@@ -516,7 +533,7 @@ function manageTab(group, questions, members) {
       ${members.length ? `<ul class="manage-list">${members.map((m) => `<li class="manage-q"><div><b>${esc(m.name)}</b>
         <small>Joined ${new Date(m.joinedAt).toLocaleDateString()}</small></div>
         <button class="btn ghost small danger" data-action="remove-member" data-key="${esc(m.key)}">Remove</button></li>`).join("")}</ul>`
-        : `<p class="muted">Nobody yet. Share the link with ⤴︎ at the top.</p>`}
+        : `<p class="muted">Nobody yet. Send your friends the invite link above.</p>`}
     </section>
     <section class="card">
       <h3>Settings</h3>
@@ -655,6 +672,46 @@ function readQuestionForm(form) {
   return { q };
 }
 
+// ── Invite links ─────────────────────────────────────────────────────────────
+const groupLink = (gid) => location.href.split("#")[0] + `#/g/${gid}`;
+
+function inviteBox(group) {
+  return `<button type="button" class="link-field" data-action="copy-link" data-gid="${group.id}" aria-label="Copy invite link">${esc(groupLink(group.id))}</button>
+    <div class="btn-row tight">
+      ${navigator.share ? `<button type="button" class="btn primary" data-action="share-link" data-gid="${group.id}">Share link…</button>` : ""}
+      <button type="button" class="btn${navigator.share ? "" : " primary"}" data-action="copy-link" data-gid="${group.id}">Copy link</button>
+    </div>
+    ${store.mode === "local" ? `<p class="banner warn small">You're in demo mode, so friends will see an empty app. Connect Firebase first (see the README) for links to work.</p>` : ""}`;
+}
+
+function showInvite(group, fresh) {
+  modal(`<div class="invite-head"><span class="group-emoji">${esc(group.emoji || "✈️")}</span>
+      <div><h3>${fresh ? "Group created! " : ""}Invite friends</h3><p class="muted small">to ${esc(group.name)}</p></div></div>
+    <p class="muted small">Send them this link in Messages, WhatsApp or anywhere. When they open it they'll see the group and can choose to join.</p>
+    ${inviteBox(group)}
+    <button class="btn ghost block" data-close>${fresh ? "Later" : "Done"}</button>`);
+}
+
+async function shareLink(gid) {
+  const group = state.groupData?.group?.id === gid ? state.groupData.group : state.groups?.find((g) => g.id === gid);
+  const name = group?.name || appName;
+  try {
+    await navigator.share({ title: name, text: `Join "${name}" and help plan the trip ✈️`, url: groupLink(gid) });
+  } catch (e) {
+    if (e.name !== "AbortError") copyLink(gid);
+  }
+}
+
+async function copyLink(gid) {
+  const url = groupLink(gid);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("Link copied — paste it to your friends");
+  } catch {
+    prompt("Copy this link:", url);
+  }
+}
+
 // ── Modal & toast ────────────────────────────────────────────────────────────
 function modal(html) {
   closeModal();
@@ -663,7 +720,7 @@ function modal(html) {
   el.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
   el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeModal(); });
   document.body.appendChild(el);
-  el.querySelector("input")?.focus();
+  el.querySelector("input:not([type=hidden])")?.focus();
   return el;
 }
 function closeModal() { document.querySelector(".modal-back")?.remove(); }
@@ -767,7 +824,11 @@ $app.addEventListener("submit", async (e) => {
     if (!data.name) return showError(form, "Give the group a name.");
     await busy(form, async () => {
       if (gid) { await store.updateGroup(gid, data); go(`#/g/${gid}/manage`); toast("Saved"); }
-      else { const id = await store.createGroup(data); go(`#/g/${id}/manage`); toast("Group created"); }
+      else {
+        const id = await store.createGroup(data);
+        go(`#/g/${id}/manage`);
+        showInvite({ id, ...data }, true);
+      }
     });
   }
 
@@ -830,6 +891,8 @@ document.addEventListener("click", async (e) => {
   document.querySelectorAll("details.menu[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
 
   const btn = e.target.closest("[data-action]");
+  if (btn?.dataset.action === "share-link") return shareLink(btn.dataset.gid);
+  if (btn?.dataset.action === "copy-link") return copyLink(btn.dataset.gid);
   if (!btn || btn.closest(".modal")) return;
   const { action, qid, key } = btn.dataset;
   const gid = state.route.gid;
@@ -837,13 +900,8 @@ document.addEventListener("click", async (e) => {
 
   switch (action) {
     case "settings": return showSettings();
-    case "share": {
-      const url = location.href.split("#")[0] + `#/g/${gid}`;
-      const title = data?.group?.name || appName;
-      if (navigator.share) return navigator.share({ title, text: `Join "${title}" and answer a few questions:`, url }).catch(() => {});
-      await navigator.clipboard?.writeText(url).then(() => toast("Link copied"), () => prompt("Copy this link:", url));
-      return;
-    }
+    case "invite":
+      return isOrganiser() ? showInvite(data.group) : shareLink(gid);
     case "pick-me": {
       const name = data.group.members[key]?.name;
       if (!name || !confirm(`Continue as ${name}?`)) return;

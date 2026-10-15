@@ -240,6 +240,25 @@ input[type=date] { min-width: 0; display: block; min-height: 46px; }
 .emoji-pick span { display: grid; place-items: center; aspect-ratio: 1; font-size: 26px; border-radius: 12px; background: var(--field); border: 2px solid transparent; cursor: pointer; }
 .emoji-pick input:checked + span { border-color: var(--accent); background: var(--accent-wash); }
 
+/* ── Invites ─────────────────────────────────────────────────────────────── */
+.invite h3 { font-size: 22px; margin: 2px 0 4px; }
+.eyebrow { margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.invite-sub { margin: 14px 0 6px; font-weight: 600; font-size: 14px; }
+.preview-qs { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 6px; }
+.preview-qs li { display: flex; align-items: center; gap: 8px; font-size: 15px; min-width: 0; }
+.preview-qs .pill { flex: none; }
+.join-form { margin-top: 16px; }
+.join-form label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.center-text { text-align: center; }
+.link-field {
+  display: block; width: 100%; text-align: left; margin-top: 10px; padding: 11px 12px; border: 1px dashed var(--line-strong); border-radius: 10px;
+  background: var(--field); color: var(--ink-2); font: 14px ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; cursor: pointer;
+}
+.btn-row.tight { margin-top: 10px; }
+.banner.warn { margin: 12px 0 0; }
+.invite-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.invite-head p { margin: 0; }
+
 /* ── Answer cards ────────────────────────────────────────────────────────── */
 .q-top { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .q-num { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--card); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
