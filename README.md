@@ -34,7 +34,7 @@ Out of the box the app runs in **demo mode**, which saves data only on the devic
 npx serve .
 ```
 
-Then open the address it prints. The organiser PIN is `1234` (tap ⚙︎ → *I'm the organiser*).
+Then open the address it prints. The default organiser PIN is `1234` (this copy uses the one in `js/config.js`) (tap ⚙︎ → *I'm the organiser*).
 
 ## 2. Connect a shared database (free, about 5 minutes)
 
