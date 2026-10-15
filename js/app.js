@@ -5,6 +5,7 @@ import * as C from "./charts.js";
 
 const esc = C.esc;
 const $app = document.getElementById("app");
+const NEXT_YEAR = new Date().getFullYear() + 1;
 const EMOJIS = ["✈️", "🏖️", "🏔️", "🏕️", "🚗", "🎉", "🌍", "🏙️", "🎿", "🚢", "☀️", "🍕"];
 
 // ── Local (this-device) state ────────────────────────────────────────────────
@@ -40,6 +41,7 @@ const state = {
   drafts: {}, // unsaved answers, keyed by question id
   open: new Set(), // expanded <details> on the results page
   formShownFor: null, // forms render once so live updates don't wipe what you're typing
+  calMonth: {}, // which month each date question's calendar is showing, keyed by question id
   error: null,
 };
 
@@ -234,6 +236,7 @@ function answerTab(group, questions, mine) {
 function toRaw(q, value) {
   if (value === undefined || value === null) return null;
   if (q.type === "number") return String(value);
+  if (q.type === "dates") return [...value];
   if (q.type === "range") return { low: String(value.low), high: String(value.high) };
   if (q.type === "choice") {
     const opts = new Set(q.options || []);
@@ -295,9 +298,54 @@ function answerInput(q, raw) {
           <input name="other" placeholder="Something else…" maxlength="60" value="${esc(raw?.other ?? "")}"></label>`);
       return `${q.multiple ? `<p class="muted small">Pick as many as you like</p>` : ""}<div class="options">${opts.join("")}</div>`;
     }
+    case "dates":
+      return datePicker(q, raw || []);
     default:
       return `<textarea name="t" rows="3" maxlength="500" placeholder="Your answer">${esc(raw ?? "")}</textarea>`;
   }
+}
+
+// ── Date picker ──────────────────────────────────────────────────────────────
+function datePicker(q, picked) {
+  return `<input type="hidden" name="dates" value="${esc(picked.join(","))}">
+    <p class="muted small">Tap every date you're free. Tap again to undo.</p>
+    <div class="cal" data-qid="${q.id}">${calendarMonth(q, picked)}</div>
+    <p class="cal-summary small">${dateSummary(picked)}</p>`;
+}
+
+function dateSummary(picked) {
+  if (!picked.length) return `<span class="muted">No dates picked yet</span>`;
+  return `<b>${picked.length} ${picked.length === 1 ? "day" : "days"}:</b> ${esc(S.fmtDates(picked))}
+    <button type="button" class="link" data-action="cal-clear">Clear all</button>`;
+}
+
+function calendarMonth(q, picked) {
+  const months = S.monthsBetween(q.from, q.to);
+  // Open on the month you were looking at, else your first pick, else the start.
+  let ym = state.calMonth[q.id] || (picked[0] || "").slice(0, 7);
+  if (!months.includes(ym)) ym = months[0];
+  const at = months.indexOf(ym);
+  const on = new Set(picked);
+  const inMonth = picked.filter((iso) => iso.startsWith(ym)).length;
+  const nav = (dir, label, ok) =>
+    `<button type="button" class="icon-btn small" data-action="cal-nav" data-dir="${dir}" ${ok ? "" : "disabled"} aria-label="${label}">${dir < 0 ? "‹" : "›"}</button>`;
+  return `<div class="cal-head" data-month="${ym}">${nav(-1, "Previous month", at > 0)}
+      <div><b>${esc(S.fmtMonth(ym))}</b>${inMonth ? `<small>${inMonth} picked</small>` : ""}</div>
+      ${nav(1, "Next month", at < months.length - 1)}</div>
+    ${C.monthGrid(ym, (iso, day) =>
+      iso < q.from || iso > q.to
+        ? `<span class="cal-day off">${day}</span>`
+        : `<button type="button" class="cal-day${on.has(iso) ? " on" : ""}${S.weekday(iso) > 4 ? " wkend" : ""}" data-action="cal-day" data-date="${iso}"
+            aria-pressed="${on.has(iso)}" aria-label="${esc(S.fmtDay(iso))}">${day}</button>`)}`;
+}
+
+/** Update a date question's picks in place, without redrawing the whole page. */
+function setPicked(form, q, picked) {
+  picked = [...new Set(picked)].sort();
+  form.elements.dates.value = picked.join(",");
+  state.drafts[q.id] = picked;
+  form.querySelector(".cal").innerHTML = calendarMonth(q, picked);
+  form.querySelector(".cal-summary").innerHTML = dateSummary(picked);
 }
 
 /** Read an answer form → { raw, value } or { raw, error }. */
@@ -332,6 +380,12 @@ function readAnswer(form, q) {
         value.push(other);
       }
       if (!value.length) return { raw, error: "Pick an option." };
+      return { raw, value };
+    }
+    case "dates": {
+      const raw = String(f.get("dates") || "").split(",").filter(Boolean);
+      const value = raw.filter((iso) => iso >= q.from && iso <= q.to).sort();
+      if (!value.length) return { raw, error: "Tap at least one date you're free." };
       return { raw, value };
     }
     default: {
@@ -415,6 +469,14 @@ function questionResults(q, i, members) {
       value: tied.map((r) => r.label).join(" / "),
       sub: `${top.names.length} of ${entries.length} ${entries.length === 1 ? "person" : "people"}`,
     }]) + C.choiceBars(rows, entries.length);
+  } else if (q.type === "dates") {
+    const st = S.dateStats(entries);
+    const top = st.best[0];
+    viz = C.tiles([
+      { label: top.names.length === entries.length ? "Everyone's free" : `Best dates (${top.names.length} of ${entries.length})`, value: S.fmtRun([top.from, top.to]) },
+      { label: "Days everyone's free", value: st.everyoneDays },
+    ]) + `<h4 class="sub-head">Best dates</h4>${C.bestDates(st, entries.length)}
+      <h4 class="sub-head">Calendar</h4>${C.dateHeatmap(q, st, entries.length)}`;
   } else {
     viz = `<ul class="quotes">${entries.map((e) => `<li><b>${esc(e.name)}</b><p>${esc(e.value)}</p></li>`).join("")}</ul>`;
   }
@@ -537,6 +599,13 @@ function questionFormView() {
           <label>Slider step<input name="rstep" type="number" inputmode="decimal" step="any" min="0" value="${q.type === "range" ? v(q.step || 1) : "10"}"></label>
         </div>
       </div>
+      <div class="only" data-for="dates">
+        <p class="muted small">People can pick as many dates as they like between these.</p>
+        <div class="grid2">
+          <label>From<input name="dfrom" type="date" value="${q.type === "dates" ? v(q.from) : NEXT_YEAR + "-01-01"}"></label>
+          <label>To<input name="dto" type="date" value="${q.type === "dates" ? v(q.to) : NEXT_YEAR + "-12-31"}"></label>
+        </div>
+      </div>
       <div class="only" data-for="choice">
         <fieldset><legend>Options</legend>
           <div class="option-edit">${options.map((o) => optionRow(o)).join("")}</div>
@@ -571,6 +640,12 @@ function readQuestionForm(form) {
     if (q.min === null || q.max === null) return { error: "Set the lowest and highest values for the range." };
     if (q.min >= q.max) return { error: "Lowest must be less than highest." };
     if (q.step <= 0) return { error: "Slider step must be more than 0." };
+  }
+  if (type === "dates") {
+    Object.assign(q, { from: str("dfrom"), to: str("dto") });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(q.from) || !/^\d{4}-\d{2}-\d{2}$/.test(q.to)) return { error: "Pick a start and end date." };
+    if (q.from > q.to) return { error: "The start date must be before the end date." };
+    if (S.monthsBetween(q.from, q.to).length > 24) return { error: "Keep the dates within two years." };
   }
   if (type === "choice") {
     const opts = [...new Set(f.getAll("option").map((o) => String(o).trim()).filter(Boolean))];
@@ -779,6 +854,8 @@ document.addEventListener("click", async (e) => {
     case "leave":
       if (!confirm("Switch to a different username on this phone? Your answers stay saved.")) return;
       setMyKey(gid, null);
+      state.drafts = {};
+      state.calMonth = {};
       return render();
     case "clear-answer": {
       const mine = me(data.group);
@@ -786,6 +863,22 @@ document.addEventListener("click", async (e) => {
       delete state.drafts[qid];
       await busy(btn.closest("form"), () => store.setResponse(gid, qid, mine.key, null));
       return toast("Answer cleared");
+    }
+    case "cal-day":
+    case "cal-nav":
+    case "cal-clear": {
+      const form = btn.closest("form");
+      const q = data.questions.find((x) => x.id === form.dataset.qid);
+      const picked = String(form.elements.dates.value).split(",").filter(Boolean);
+      if (action === "cal-day") {
+        const iso = btn.dataset.date;
+        return setPicked(form, q, picked.includes(iso) ? picked.filter((x) => x !== iso) : [...picked, iso]);
+      }
+      if (action === "cal-clear") return setPicked(form, q, []);
+      const months = S.monthsBetween(q.from, q.to);
+      const at = months.indexOf(form.querySelector(".cal-head").dataset.month);
+      state.calMonth[q.id] = months[Math.min(Math.max(at + Number(btn.dataset.dir), 0), months.length - 1)];
+      return setPicked(form, q, picked);
     }
     case "add-option": {
       const list = btn.closest("form").querySelector(".option-edit");

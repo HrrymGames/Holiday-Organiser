@@ -5,6 +5,7 @@ export const TYPES = {
   number: { label: "Number", icon: "#", blurb: "A single number" },
   range: { label: "Range", icon: "↔", blurb: "A from–to range" },
   choice: { label: "Choice", icon: "☰", blurb: "Pick from options" },
+  dates: { label: "Dates", icon: "📅", blurb: "Tap every date you're free" },
 };
 
 const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
@@ -29,6 +30,7 @@ export function describe(q, value) {
     case "number": return fmt(q, value);
     case "range": return fmtRange(q, value.low, value.high);
     case "choice": return value.join(", ");
+    case "dates": return fmtDates(value);
     default: return String(value);
   }
 }
@@ -127,4 +129,82 @@ export function compact(q, n) {
     ? new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(n)
     : nf.format(n);
   return `${q.prefix || ""}${short}`;
+}
+
+// ── Dates ────────────────────────────────────────────────────────────────────
+// Dates are stored as "YYYY-MM-DD" strings and handled in UTC so time zones never shift a day.
+
+const DAY = 86400000;
+export const toDate = (iso) => new Date(iso + "T00:00:00Z");
+export const toISO = (d) => d.toISOString().slice(0, 10);
+export const addDays = (iso, n) => toISO(new Date(toDate(iso).getTime() + n * DAY));
+/** Monday = 0 … Sunday = 6 */
+export const weekday = (iso) => (toDate(iso).getUTCDay() + 6) % 7;
+
+const dm = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+const wdm = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const my = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+export const fmtDay = (iso) => wdm.format(toDate(iso));
+export const fmtMonth = (ym) => my.format(toDate(ym + "-01"));
+
+/** Sorted dates → runs of consecutive days: [["2027-07-03", "2027-07-09"], …] */
+export function dateRuns(dates) {
+  const runs = [];
+  for (const iso of [...new Set(dates)].sort()) {
+    const last = runs[runs.length - 1];
+    if (last && addDays(last[1], 1) === iso) last[1] = iso;
+    else runs.push([iso, iso]);
+  }
+  return runs;
+}
+
+/** "3 Jul" / "3–9 Jul" / "30 Jul – 2 Aug" (in the phone's own date style) */
+export function fmtRun([a, b]) {
+  return a === b ? dm.format(toDate(a)) : dm.formatRange(toDate(a), toDate(b));
+}
+
+export const fmtDates = (dates) => dateRuns(dates).map(fmtRun).join(", ");
+
+/** "YYYY-MM" for each month from one date to another. */
+export function monthsBetween(from, to) {
+  const out = [];
+  let [y, m] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  while (y < ty || (y === ty && m <= tm)) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (++m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+
+/**
+ * Who's free on each day, plus the best stretches: runs of consecutive days
+ * where exactly the same people are free, most people first, then longest.
+ */
+export function dateStats(entries) {
+  const byDate = new Map();
+  for (const { name, value } of entries)
+    for (const iso of value || []) {
+      if (!byDate.has(iso)) byDate.set(iso, []);
+      byDate.get(iso).push(name);
+    }
+  const days = [...byDate.keys()].sort();
+  const max = Math.max(0, ...[...byDate.values()].map((n) => n.length));
+  const runs = [];
+  for (const iso of days) {
+    const names = byDate.get(iso);
+    const key = [...names].sort().join("\n");
+    const last = runs[runs.length - 1];
+    if (last && last.key === key && addDays(last.to, 1) === iso) last.to = iso;
+    else runs.push({ from: iso, to: iso, names, key });
+  }
+  const length = (r) => (toDate(r.to) - toDate(r.from)) / DAY + 1;
+  runs.forEach((r) => (r.days = length(r)));
+  runs.sort((a, b) => b.names.length - a.names.length || b.days - a.days || a.from.localeCompare(b.from));
+  return {
+    byDate,
+    max,
+    everyoneDays: days.filter((iso) => byDate.get(iso).length === entries.length).length,
+    best: runs.filter((r) => r.names.length > 0),
+  };
 }

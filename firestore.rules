@@ -13,7 +13,7 @@ service cloud.firestore {
 
       match /questions/{questionId} {
         allow read, delete: if true;
-        allow create, update: if request.resource.data.type in ['text', 'number', 'range', 'choice']
+        allow create, update: if request.resource.data.type in ['text', 'number', 'range', 'choice', 'dates']
                               && request.resource.data.title is string
                               && request.resource.data.title.size() <= 120
                               && request.resource.data.responses is map;

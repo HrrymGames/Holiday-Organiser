@@ -1,7 +1,7 @@
 // Small HTML/CSS charts for the results roundup. Every value is also written as
 // text next to its mark, and every mark has a tap/hover tooltip (data-tip).
 
-import { niceTicks, compact, fmt, fmtRange } from "./stats.js";
+import { niceTicks, compact, fmt, fmtRange, fmtMonth, fmtDay, fmtRun, weekday, monthsBetween } from "./stats.js";
 
 export const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -98,6 +98,53 @@ export function choiceBars(rows, total) {
       </div>`;
     })
     .join("")}</div>`;
+}
+
+/**
+ * A Monday-first month grid. cell(iso) returns the HTML for each day;
+ * the weekday header and the blank cells before the 1st are filled in here.
+ */
+export function monthGrid(ym, cell) {
+  const [y, m] = ym.split("-").map(Number);
+  const daysIn = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const first = `${ym}-01`;
+  let html = ["M", "T", "W", "T", "F", "S", "S"].map((d) => `<span class="cal-dow" aria-hidden="true">${d}</span>`).join("");
+  html += `<span class="cal-blank"></span>`.repeat(weekday(first));
+  for (let day = 1; day <= daysIn; day++) html += cell(`${ym}-${String(day).padStart(2, "0")}`, day);
+  return `<div class="cal-grid">${html}</div>`;
+}
+
+/** Calendar heatmap: the more people free on a day, the darker it is. */
+export function dateHeatmap(q, stats, answered) {
+  const months = [...new Set([...stats.byDate.keys()].map((iso) => iso.slice(0, 7)))].sort();
+  if (!months.length) return "";
+  // Fill in any empty months between the first and last picked month so gaps are visible.
+  const all = monthsBetween(months[0] + "-01", months[months.length - 1] + "-01");
+  const cal = all
+    .map((ym) => `<div class="cal-month"><h4>${esc(fmtMonth(ym))}</h4>${monthGrid(ym, (iso, day) => {
+      const names = stats.byDate.get(iso) || [];
+      if (!names.length) return `<span class="cal-day heat zero">${day}</span>`;
+      const share = names.length / answered;
+      const tip = `${fmtDay(iso)}: ${names.length} of ${answered} free (${names.join(", ")})`;
+      return `<span class="cal-day heat${share > 0.7 ? " dark" : ""}${names.length === answered ? " all" : ""}"
+        style="--heat:${Math.round(20 + share * 80)}%" data-tip="${esc(tip)}"><b>${day}</b><small>${names.length}</small></span>`;
+    })}</div>`)
+    .join("");
+  const steps = Array.from({ length: Math.min(answered, 5) }, (_, i) => {
+    const n = answered <= 5 ? i + 1 : Math.round(((i + 1) / 5) * answered);
+    return `<span class="heat-key${n / answered > 0.7 ? " dark" : ""}" style="--heat:${Math.round(20 + (n / answered) * 80)}%">${n}</span>`;
+  }).join("");
+  return `<div class="legend heat-legend">People free: ${steps}<span class="heat-key-all">✓</span> = everyone</div>
+    <div class="cal-months">${cal}</div>`;
+}
+
+/** The best stretches of dates, as a list with who's free. */
+export function bestDates(stats, answered, limit = 5) {
+  return `<ol class="best-dates">${stats.best.slice(0, limit).map((r) => `<li>
+      <div><b>${esc(fmtRun([r.from, r.to]))}</b>${r.days > 1 ? ` <span class="muted small">${r.days} days</span>` : ""}</div>
+      <div class="best-who"><span class="pill${r.names.length === answered ? " ok" : ""}">${r.names.length === answered ? "Everyone" : `${r.names.length} of ${answered}`}</span>
+        <span class="muted small">${r.names.length === answered ? "" : esc(r.names.join(", "))}</span></div>
+    </li>`).join("")}</ol>`;
 }
 
 // ── Tooltip: hover on desktop, tap on iPhone ────────────────────────────────

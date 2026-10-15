@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache when there's no signal,
 // but always try the network first so updates show up straight away.
-const CACHE = "holiday-organiser-v1";
+const CACHE = "holiday-organiser-v2";
 const SHELL = [
   "./", "index.html", "css/styles.css", "manifest.webmanifest",
   "js/app.js", "js/config.js", "js/stats.js", "js/charts.js",

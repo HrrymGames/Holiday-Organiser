@@ -4,11 +4,12 @@ A little iPhone app for planning trips with friends. You make groups, your frien
 
 - **Groups:** everyone using the app sees the list of groups and can tap **Join**.
 - **No passwords:** people type a username. If they switch phones they just tap their name.
-- **Four question types:**
+- **Five question types:**
   - **Word**: free text ("Any must-dos?")
   - **Number**: one number, with optional min/max and units ("How many nights?")
   - **Range**: a from–to range on a slider ("What's your budget?", e.g. £400–£900)
   - **Choice**: multiple choice, single or multi-pick, optionally with "something else" ("Where does everyone want to go?")
+  - **Dates**: a calendar where people tap every day they're free ("Which dates can you do?"). You set the window, which defaults to the whole of next year.
 - **Results roundup:**
   - how many people have answered each question, and who you're still waiting on
   - each person's progress, which you can tap to see all their answers
@@ -16,6 +17,7 @@ A little iPhone app for planning trips with friends. You make groups, your frien
   - range answers: everyone's range on one chart, with the stretch that **works for everyone** (or for the most people) highlighted
   - choice answers: votes per option and who picked what
   - word answers: everyone's answers listed with their names
+  - date answers: the best dates (the longest stretches where everyone, or the most people, is free, and who that is), plus a calendar shaded by how many people can make each day
 - **You're in charge:** only the organiser (unlocked with a PIN) can create groups, add, edit, reorder or close questions, remove people, and choose whether everyone can see the results.
 - Everything updates live, works in light and dark mode, and installs to the home screen like a normal app.
 
@@ -41,7 +43,7 @@ This is what lets everyone see the same groups. It uses Google Firebase's free p
 2. In the left menu open **Build → Firestore Database** → **Create database**.
    - Location: pick one near you (e.g. `europe-west2 (London)`).
    - Start in **production mode**.
-3. On the Firestore **Rules** tab, replace everything with the contents of [`firestore.rules`](firestore.rules) and click **Publish**.
+3. On the Firestore **Rules** tab, replace everything with the contents of [`firestore.rules`](firestore.rules) and click **Publish**. If you published the rules before the Dates question type existed, publish them again. Otherwise date questions will be refused.
 4. Go to **Project settings** (⚙︎ next to *Project Overview*) → **Your apps** → click the **`</>`** (Web) icon. Give it a nickname and register it. You don't need Firebase Hosting.
 5. Copy the `firebaseConfig = { ... }` object it shows you into [`js/config.js`](js/config.js), replacing `null`:
 
@@ -85,7 +87,7 @@ Send friends the same link, or open a group and tap **⤴︎** to share a link s
 
 1. Tap ⚙︎ → *I'm the organiser* and enter your PIN. That device stays unlocked until you turn it off.
 2. **＋ New group**: give it a name, a description and an icon.
-3. In the group's **Manage** tab, tap **＋ Add**, choose Word / Number / Range / Choice, and post the question.
+3. In the group's **Manage** tab, tap **＋ Add**, choose Word / Number / Range / Choice / Dates, and post the question.
 4. Watch the **Results** tab fill up. Use the **⋯** menu on a question to edit it, close it to new answers, or delete it.
 5. If you want, turn on **Let everyone see the results**.
 
@@ -107,8 +109,8 @@ Send friends the same link, or open a group and tap **⤴︎** to share a link s
 | `index.html` | The page shell |
 | `js/config.js` | **Your settings**: Firebase config, organiser PIN, app name |
 | `js/app.js` | Screens, routing and all the interactions |
-| `js/stats.js` | Averages, medians, range overlaps and vote counts |
-| `js/charts.js` | The bar, range and vote charts |
+| `js/stats.js` | Averages, medians, range overlaps, vote counts and best dates |
+| `js/charts.js` | The bar, range, vote and calendar charts |
 | `js/store/` | Data storage: `firebase.js` (shared) or `local.js` (demo mode) |
 | `css/styles.css` | iPhone-style design, light and dark |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Home-screen app and offline support |
