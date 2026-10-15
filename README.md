@@ -66,13 +66,14 @@ The ⚙︎ menu shows "✓ Connected to the shared database" when this is workin
 
 ## 3. Put it online
 
-**GitHub Pages (already set up):**
+**GitHub Pages (free for public repos):**
 
-1. On GitHub open the repo's **Settings → Pages**. Under *Build and deployment*, set **Source** to **GitHub Actions**.
-2. Merge into `main` (or run the *Deploy to GitHub Pages* workflow from the **Actions** tab).
-3. Your app will be at `https://<your-username>.github.io/<repo-name>/`.
+1. On GitHub open the repo's **Settings → Pages**.
+2. Under *Build and deployment*, set **Source** to **Deploy from a branch**.
+3. Pick the branch the app is on (e.g. `main` or `claude/iphone-group-polling-app-g6woxv`), leave the folder as **/ (root)**, and tap **Save**.
+4. After a minute or two the app is live at `https://<your-username>.github.io/<repo-name>/`, e.g. `https://hrrymgames.github.io/Holiday-Organiser/`. It updates by itself every time the branch changes.
 
-> On a free GitHub account, Pages only works for **public** repos. If yours is private, you can either make it public or use Netlify instead: go to <https://app.netlify.com/drop> and drag the project folder onto the page.
+> On a free GitHub account, Pages only works for **public** repos. If yours is private, you can use Netlify instead: go to <https://app.netlify.com/drop> and drag the project folder onto the page.
 
 ## 4. Add it to your iPhone
 
