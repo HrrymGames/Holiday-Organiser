@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// No logins in this app, so anyone with the app link can read and write groups.
+// That's fine for personal use with friends. Everything outside /groups is locked.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /groups/{groupId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.name is string
+                            && request.resource.data.name.size() <= 40
+                            && request.resource.data.members is map;
+      allow delete: if true;
+
+      match /questions/{questionId} {
+        allow read, delete: if true;
+        allow create, update: if request.resource.data.type in ['text', 'number', 'range', 'choice']
+                              && request.resource.data.title is string
+                              && request.resource.data.title.size() <= 120
+                              && request.resource.data.responses is map;
+      }
+    }
+  }
+}
